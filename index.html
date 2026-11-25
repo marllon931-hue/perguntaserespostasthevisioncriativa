@@ -27,6 +27,10 @@ select{width:100%;font:600 18px var(--f);color:var(--tinta);background:var(--cre
 .chips button.on{background:var(--gema);border-color:var(--gema);color:var(--tinta);font-weight:700}
 .alea{display:flex;align-items:center;gap:10px;margin-top:12px;font-weight:500;cursor:pointer}
 .alea input{width:22px;height:22px;accent-color:var(--gema)}
+.sortear{display:block;width:100%;font:700 21px var(--f);border:0;border-radius:14px;padding:14px;cursor:pointer;color:var(--tinta);background:var(--gema);box-shadow:0 5px 0 #b88a12;margin-bottom:12px}
+.sortear:active{transform:translateY(3px);box-shadow:0 2px 0 #b88a12}
+.sortear:disabled{opacity:.7;cursor:default}
+.roleta{background:var(--creme);color:var(--tinta);border:3px solid var(--gema);border-radius:14px;padding:14px 12px;margin-bottom:14px;text-align:center;font-size:25px;font-weight:700;line-height:1.2;min-height:62px}
 .placa{background:var(--creme);border-radius:22px;padding:22px 20px 20px;box-shadow:0 8px 0 rgba(0,0,0,.28);position:relative}
 .placa::before{content:"🥧";position:absolute;top:-22px;right:16px;font-size:40px;transform:rotate(12deg)}
 .barra{height:10px;background:#e5d9bf;border-radius:6px;overflow:hidden}
@@ -74,7 +78,7 @@ let cartoes=SEED.map(x=>({...x}));
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ---------- jogo ---------- */
-let S={cat:null,niveis:[],rand:true,fila:[],pos:0,mostrar:false};
+let S={cat:null,niveis:[],rand:true,fila:[],pos:0,mostrar:false,usados:[],girando:false};
 const ordemCats=()=>[...new Set(cartoes.slice().sort((a,b)=>(a.vol||99)-(b.vol||99)).map(c=>c.categoria))];
 function iniciar(){
   const cats=ordemCats();
@@ -88,7 +92,7 @@ function iniciar(){
 function desenhar(){
   const cats=ordemCats();
   const niveis=[...new Set(cartoes.filter(c=>c.categoria===S.cat).sort((a,b)=>a.numero-b.numero).map(c=>c.nivel))];
-  let h=`<div class="painel"><label class="t" for="sc">Escolha o tema</label>
+  let h=`<div class="painel"><button class="sortear" id="sorteio" type="button">🎲 ${S.usados.length?"Sortear outro tema":"Sortear tema"}</button><div class="roleta" id="roleta" style="display:none" aria-live="polite"></div><label class="t" for="sc">Ou escolha o tema</label>
   <select id="sc">${cats.map(c=>`<option value="${esc(c)}" ${c===S.cat?"selected":""}>${esc(c)} (${cartoes.filter(x=>x.categoria===c).length})</option>`).join("")}</select>`;
   if(niveis.length>1)h+=`<div class="chips" id="nv">${niveis.map(n=>`<button type="button" data-n="${esc(n)}" class="${S.niveis.includes(n)?"on":""}">${esc(n)}</button>`).join("")}</div>`;
   h+=`<label class="alea"><input type="checkbox" id="rd" ${S.rand?"checked":""}> Embaralhar as perguntas</label></div>`;
@@ -107,11 +111,34 @@ function desenhar(){
   $("sc").onchange=e=>{S.cat=e.target.value;S.niveis=[];iniciar()};
   const nv=$("nv"); if(nv)nv.querySelectorAll("button").forEach(b=>b.onclick=()=>{const n=b.dataset.n;S.niveis=S.niveis.includes(n)?S.niveis.filter(x=>x!==n):[...S.niveis,n];iniciar()});
   $("rd").onchange=e=>{S.rand=e.target.checked;iniciar()};
+  $("sorteio").onclick=sortear;
   if($("re"))$("re").onclick=()=>{iniciar();window.scrollTo(0,0)};
   if($("ver"))$("ver").onclick=()=>{S.mostrar=true;desenhar();$("prox")&&$("prox").focus()};
   if($("prox"))$("prox").onclick=()=>{S.pos++;S.mostrar=false;desenhar();$("ver")&&$("ver").focus()};
 }
+function sortear(){
+  if(S.girando)return;
+  const cats=ordemCats(); if(cats.length<2)return;
+  let pool=cats.filter(c=>!S.usados.includes(c)&&c!==S.cat);
+  if(!pool.length){S.usados=[];pool=cats.filter(c=>c!==S.cat)}
+  const sorteado=pool[Math.floor(Math.random()*pool.length)];
+  const fim=()=>{S.usados.push(sorteado);S.cat=sorteado;S.niveis=[];S.girando=false;iniciar();
+    const p=document.querySelector(".placa"); if(p&&p.scrollIntoView)p.scrollIntoView({block:"center"})};
+  const reduzir=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(reduzir){fim();return}
+  S.girando=true;
+  const r=$("roleta"),b=$("sorteio"); r.style.display="block"; b.disabled=true; $("sc").disabled=true;
+  const passos=26; let i=0;
+  const gira=()=>{
+    i++;
+    r.textContent=i>=passos?sorteado:cats[Math.floor(Math.random()*cats.length)];
+    if(i>=passos){r.textContent="🎲 "+sorteado;setTimeout(fim,900);return}
+    setTimeout(gira,60+i*i*0.28);
+  };
+  gira();
+}
 document.addEventListener("keydown",e=>{
+  if(S.girando)return;
   if(/^(SELECT|INPUT|TEXTAREA|BUTTON)$/.test(e.target.tagName))return;
   if(e.key==="ArrowRight"||e.key===" "||e.key==="Enter"){const b=$("ver")||$("prox");if(b){e.preventDefault();b.click()}}
 });
