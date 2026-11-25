@@ -125,15 +125,14 @@ function sortear(){
   const fim=()=>{S.usados.push(sorteado);S.cat=sorteado;S.niveis=[];S.girando=false;iniciar();
     const p=document.querySelector(".placa"); if(p&&p.scrollIntoView)p.scrollIntoView({block:"center"})};
   const reduzir=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if(reduzir){fim();return}
   S.girando=true;
   const r=$("roleta"),b=$("sorteio"); r.style.display="block"; b.disabled=true; $("sc").disabled=true;
-  const passos=26; let i=0;
+  const passos=reduzir?8:26; let i=0;
   const gira=()=>{
     i++;
     r.textContent=i>=passos?sorteado:cats[Math.floor(Math.random()*cats.length)];
     if(i>=passos){r.textContent="🎲 "+sorteado;setTimeout(fim,900);return}
-    setTimeout(gira,60+i*i*0.28);
+    setTimeout(gira,reduzir?400:60+i*i*0.28);
   };
   gira();
 }
